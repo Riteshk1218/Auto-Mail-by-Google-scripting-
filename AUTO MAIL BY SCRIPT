@@ -1,0 +1,87 @@
+function sendDailyEmails() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getActiveSheet();
+  const data = sheet.getDataRange().getValues();
+
+  // Create / Get Log Sheet
+  const logSheetName = "Email Log";
+  let logSheet = ss.getSheetByName(logSheetName);
+
+  if (!logSheet) {
+    logSheet = ss.insertSheet(logSheetName);
+    logSheet.appendRow(["Timestamp", "Name", "Email", "Subject", "Status"]);
+  }
+
+  const defaultSubject = "Your Opinion Matters: Shape the future of IVF Excellence with your Feedback";
+  const logoUrl = "https://drive.google.com/uc?export=view&id=1b6OTAC1nhy9ba8A5r8fuUDexozog936E";
+
+const defaultMessageHTML = `
+    <div style="font-family: sans-serif; font-size: 16px;">
+      <p>At Shivani Scientific, our commitment revolves around providing exceptional service in the field of IVF to co-create success stories. Your input plays a pivotal role in helping us achieve this mission, and we would greatly appreciate it if you could take a moment to share your thoughts on your recent experience with us.</p>
+
+      <p>Whether your feedback is positive or constructive, it will serve as valuable insights that contribute to the continuous enhancement of our offerings. This ensures that we consistently deliver an outstanding experience for all our customers.</p>
+
+      <p>To share your valuable feedback, kindly click on the link provided below. The survey will only take approximately 2 minutes to complete:</p>
+
+      <p><a href="https://docs.google.com/forms/d/1-PNxOS44qMdCnvBoNJvP4OV6M-iSGT6VHqCN0F59WNc/viewform" target="_blank">Click here to fill the feedback form</a></p>
+
+      
+      <p>Regards,<br><strong>Sunita Mishra</strong><br><img src="${logoUrl}" alt="Shivani Scientific Logo" width="420" height: 117px; style="margin-bottom: 20px;">
+      <div style="font-family: sans-serif; font-size: 14px;"><br>Shivani House I 26/A, Raju Indl. Est. I Penkar Pada Road I Mira 401 104 I Dist. Thane (Mumbai) INDIA.<br>Tel :  +91 22 2897 6769 I  2896 1768 / 6770 I  Fax : +91 22 2896 6766 <br>M-7974317230<br>
+      
+WebsiteI: www.shivaniIVF.com</p> </div>
+    </div>`;
+  for (let i = 1; i < data.length; i++) {
+    const name = data[i][0];
+    const email = data[i][1];
+    const status = data[i][2];
+
+    if (email && status !== "Sent") {
+      const messageHTML = `
+        <div style="font-family: sans-serif; font-size: 14px;">
+          <p>Dear ${name},</p>
+          ${defaultMessageHTML}
+        </div>`;
+
+      try {
+        // Send Email
+        MailApp.sendEmail({
+          to: email,
+          subject: defaultSubject,
+          htmlBody: messageHTML
+        });
+
+        // Update sheet status
+        sheet.getRange(i + 1, 3).setValue("Sent");
+
+        // Log without email body
+        logSheet.appendRow([
+          new Date(),
+          name,
+          email,
+          defaultSubject,
+          "Sent"
+        ]);
+
+      } catch (e) {
+        Logger.log("Failed to send to " + email + ": " + e.toString());
+
+        // Log failure without email body
+        logSheet.appendRow([
+          new Date(),
+          name,
+          email,
+          defaultSubject,
+          "Failed: " + e.toString()
+        ]);
+      }
+    }
+  }
+}
+// In google sheet top of header side create "Email Actions " Button for trigger 
+function onOpen() {
+  const ui = SpreadsheetApp.getUi();
+  ui.createMenu("Email Actions")
+    .addItem("Send Daily Emails", "sendDailyEmails")
+    .addToUi();
+}
